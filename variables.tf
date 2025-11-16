@@ -8,8 +8,6 @@ variable "aws_region" {
 variable "email_endpoint" {
   description = "The email address to subscribe to the SNS topic for notifications."
   type        = string
-# No Default here
-# Set in terraform cloud workspace variables or via CLI
 }
 
 variable "target_url" {

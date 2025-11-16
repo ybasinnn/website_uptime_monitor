@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless Health Check Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        .status-healthy { background-color: #d1fae5; color: #065f46; }
+        .status-unhealthy { background-color: #fee2e2; color: #991b1b; }
+        .status-unknown { background-color: #fef9c3; color: #a16207; }
+
+        /* Ensure columns align nicely */
+        .dashboard-item { 
+            display: grid;
+            grid-template-columns: 1fr 100px 120px; /* Timestamp, Status, Time */
+            gap: 1rem;
+            align-items: center;
+        }
+        @media (min-width: 640px) {
+            .dashboard-item {
+                grid-template-columns: 1fr 100px 60px 100px; /* URL/Time, Status, Code, Latency */
+            }
+        }
+        
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+    <div class="max-w-4xl mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-8">
+        <header class="mb-6 border-b pb-4">
+            <h1 class="text-3xl font-bold text-gray-900 mb-1">Website Health Dashboard</h1>
+            <p class="text-sm text-gray-500">Last 20 checks logged to DynamoDB via API Gateway.</p>
+        </header>
+
+        <div id="status-summary" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"></div>
+        
+        <div class="hidden sm:grid grid-cols-[1fr_100px_60px_100px] gap-4 mb-2 p-2 text-xs font-semibold uppercase text-gray-500 border-b">
+            <span>Time & URL</span>
+            <span class="text-center">Latency</span>
+            <span class="text-center">Code</span>
+            <span class="text-center">Status</span>
+        </div>
+
+        <div id="loading" class="text-center p-8 text-gray-500">
+            <svg class="animate-spin h-5 w-5 mr-3 inline-block text-blue-500" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading health check data...
+        </div>
+
+        <div id="results-container" class="space-y-4"></div>
+        
+        <div id="error-message" class="hidden mt-4 text-red-700 p-3 bg-red-100 rounded-lg border border-red-300"></div>
+
+    </div>
+
+    <script>
+        const API_ENDPOINT = "${api_endpoint}";
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp || timestamp === 'N/A') return 'N/A';
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        function getStatusClass(status) {
+            if (status.startsWith('Healthy')) return 'status-healthy';
+            if (status.startsWith('Unhealthy')) return 'status-unhealthy';
+            return 'status-unknown';
+        }
+
+        function renderSummary(results) {
+            const total = results.length;
+            const healthyCount = results.filter(r => r.Status.startsWith('Healthy')).length;
+            const unhealthyCount = total - healthyCount;
+
+            const summaryHtml = `
+                <div class="p-4 rounded-lg shadow-md bg-green-50">
+                    <p class="text-xs font-semibold uppercase text-green-600">Total Checks</p>
+                    <p class="text-2xl font-bold text-gray-900">$${total}</p>
+                </div>
+                <div class="p-4 rounded-lg shadow-md bg-green-100">
+                    <p class="text-xs font-semibold uppercase text-green-700">Healthy</p>
+                    <p class="text-2xl font-bold text-green-700">$${healthyCount}</p>
+                </div>
+                <div class="p-4 rounded-lg shadow-md bg-red-100">
+                    <p class="text-xs font-semibold uppercase text-red-700">Unhealthy</p>
+                    <p class="text-2xl font-bold text-red-700">$${unhealthyCount}</p>
+                </div>
+            `;
+            document.getElementById('status-summary').innerHTML = summaryHtml;
+        }
+
+        function renderResults(results) {
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+            
+            if (results.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 p-4">No health check data found yet.</p>';
+                return;
+            }
+
+            results.forEach(result => {
+                const statusClass = getStatusClass(result.Status);
+                const statusText = result.Status.startsWith('Healthy') ? 'Healthy' : 'Unhealthy';
+                const responseTimeMs = result.ResponseTime ? result.ResponseTime.toFixed(0) + ' ms' : 'N/A';
+                
+                // Using a grid layout to accommodate ResponseTime (Latency)
+                const itemHtml = `
+                    <div class="p-4 border border-gray-200 rounded-lg shadow-sm grid grid-cols-[1fr_100px_60px_100px] gap-4 items-center $${statusClass}">
+                        <div>
+                            <span class="text-sm font-medium w-32 sm:w-auto block">$${formatTimestamp(result.Timestamp)}</span>
+                            <span class="text-xs font-mono text-gray-600 truncate block">$${result.URL}</span>
+                        </div>
+                        
+                        <span class="text-sm font-semibold text-gray-700 text-center">$${responseTimeMs}</span>
+                        
+                        <span class="text-sm font-semibold text-center">$${result.HTTPStatusCode}</span>
+                        
+                        <span class="px-3 py-1 text-xs font-bold rounded-full text-white $${result.Status.startsWith('Healthy') ? 'bg-green-700' : 'bg-red-700'} text-center">
+                            $${statusText}
+                        </span>
+                    </div>
+                `;
+                container.innerHTML += itemHtml;
+            });
+        }
+
+        async function fetchData() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('error-message').classList.add('hidden');
+            
+            try {
+                // Exponential backoff retry logic
+                let response;
+                for (let i = 0; i < 3; i++) {
+                    response = await fetch(API_ENDPOINT);
+                    if (response.ok) break;
+                    // Using $$ to escape the JS interpolation
+                    console.warn(`Attempt $${i + 1} failed. Retrying in $${Math.pow(2, i)}s...`);
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                }
+
+                if (!response || !response.ok) {
+                    // Using $$ to escape the JS interpolation
+                    throw new Error(`Failed to fetch data after multiple retries. Status: $${response ? response.status : 'N/A'}`);
+                }
+
+                const data = await response.json();
+                renderSummary(data);
+                renderResults(data);
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                document.getElementById('error-message').innerText = 'Could not load dashboard data. Error: ' + error.message;
+                document.getElementById('error-message').classList.remove('hidden');
+                document.getElementById('results-container').innerHTML = ''; // Clear results on error
+
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        // Initial data fetch and auto-refresh every 30 seconds
+        window.onload = () => {
+            fetchData();
+            setInterval(fetchData, 30000); 
+        };
+    </script>
+</body>
+</html>

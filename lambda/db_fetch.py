@@ -33,7 +33,7 @@ def lambda_handler(event, context):
             # Deserialize the DynamoDB item structure (e.g., {'S': 'value'} -> 'value')
             items.append({
                 'Timestamp': item.get('Timestamp', {}).get('S', 'N/A'),
-                'DurationMs': item.get('DurationMs', {}).get('N', '0'),
+                'ResponseTime': item.get('DurationMs', {}).get('N', '0'),
                 'URL': item.get('URL', {}).get('S', 'N/A'),
                 'Status': item.get('Status', {}).get('S', 'N/A'),
                 'HTTPStatusCode': item.get('HTTPStatusCode', {}).get('N', '0')

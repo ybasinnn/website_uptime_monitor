@@ -58,7 +58,9 @@
     </div>
 
     <script>
-        const API_ENDPOINT = "${api_endpoint}";
+        // *** IMPORTANT: REPLACE THIS WITH YOUR ACTUAL API GATEWAY URL ***
+        // NOTE: Terraform will interpolate this line once, substituting the HCL variable.
+        const API_ENDPOINT = "${api_endpoint}"; 
 
         function formatTimestamp(timestamp) {
             if (!timestamp || timestamp === 'N/A') return 'N/A';
@@ -77,6 +79,7 @@
             const healthyCount = results.filter(r => r.Status.startsWith('Healthy')).length;
             const unhealthyCount = total - healthyCount;
 
+            // Escaped template literals ($${...})
             const summaryHtml = `
                 <div class="p-4 rounded-lg shadow-md bg-green-50">
                     <p class="text-xs font-semibold uppercase text-green-600">Total Checks</p>
@@ -106,9 +109,12 @@
             results.forEach(result => {
                 const statusClass = getStatusClass(result.Status);
                 const statusText = result.Status.startsWith('Healthy') ? 'Healthy' : 'Unhealthy';
-                const responseTimeMs = result.ResponseTime ? result.ResponseTime.toFixed(0) + ' ms' : 'N/A';
                 
-                // Using a grid layout to accommodate ResponseTime (Latency)
+                // CRITICAL FIX: Use DurationMs key and convert string to number
+                const responseTime = parseFloat(result.DurationMs); 
+                const responseTimeMs = !isNaN(responseTime) ? responseTime.toFixed(0) + ' ms' : 'N/A';
+                
+                // Escaped template literals ($${...})
                 const itemHtml = `
                     <div class="p-4 border border-gray-200 rounded-lg shadow-sm grid grid-cols-[1fr_100px_60px_100px] gap-4 items-center $${statusClass}">
                         <div>
@@ -139,13 +145,13 @@
                 for (let i = 0; i < 3; i++) {
                     response = await fetch(API_ENDPOINT);
                     if (response.ok) break;
-                    // Using $$ to escape the JS interpolation
+                    // Escaped template literal usage ($${...})
                     console.warn(`Attempt $${i + 1} failed. Retrying in $${Math.pow(2, i)}s...`);
                     await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
                 }
 
                 if (!response || !response.ok) {
-                    // Using $$ to escape the JS interpolation
+                    // Escaped template literal usage ($${...})
                     throw new Error(`Failed to fetch data after multiple retries. Status: $${response ? response.status : 'N/A'}`);
                 }
 

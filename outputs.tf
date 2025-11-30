@@ -1,6 +1,6 @@
-output "dashboard_s3_endpoint" {
+output "dashboard_url" {
   description = "The publicly accessible URL of the Static Website Dashboard."
-  value       = aws_s3_bucket_website_configuration.website_config.website_endpoint
+  value       = "http://${aws_s3_bucket_website_configuration.website_config.website_endpoint}"
 }
 
 

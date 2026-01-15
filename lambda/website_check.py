@@ -5,129 +5,90 @@ import os
 from datetime import datetime
 
 # --- Configuration Constants ---
-# Maximum acceptable load time in milliseconds
 MAX_LOAD_TIME_MS = 2500
 MAX_LOAD_TIME_SECONDS = MAX_LOAD_TIME_MS / 1000
 
-# --- AWS Clients and Environment Variables ---
-# Clients are initialized outside the handler for better performance (Lambda best practice)
+# --- AWS Clients ---
 sns_client = boto3.client('sns')
 dynamodb_client = boto3.client('dynamodb')
 
-# Environment variables
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
 TARGET_URL = os.environ.get('TARGET_URL', "https://default-url.com")
 DYNAMODB_TABLE = os.environ.get('DYNAMODB_TABLE')
 
 def save_result(url: str, status: str, http_code: int, duration_ms: float):
-    """
-    Saves the comprehensive health check result, including duration, to the DynamoDB table.
-    """
     if not DYNAMODB_TABLE:
-        print("INFO: DYNAMODB_TABLE environment variable is not set. Skipping DynamoDB logging.")
         return
-
     try:
         current_time = datetime.utcnow().isoformat()
-        
         item = {
             'Timestamp': {'S': current_time},
             'URL': {'S': url},
             'Status': {'S': status},
             'HTTPStatusCode': {'N': str(http_code)},
-            'DurationMs': {'N': str(duration_ms)}, # Store the duration in milliseconds
+            'DurationMs': {'N': str(duration_ms)},
         }
-        
-        dynamodb_client.put_item(
-            TableName=DYNAMODB_TABLE,
-            Item=item
-        )
-        print(f"Successfully logged result to DynamoDB at {current_time}")
+        dynamodb_client.put_item(TableName=DYNAMODB_TABLE, Item=item)
     except Exception as e:
-        # Log the error, but don't fail the whole Lambda execution
-        print(f"ERROR: Could not save result to DynamoDB: {e}")
-
+        print(f"ERROR: DynamoDB save failed: {e}")
 
 def lambda_handler(event, context):
     url = TARGET_URL
-    
-    # Initialize variables
     lambda_http_status = 200
     http_code = 0
     request_duration_ms = 0.0
     status = "Unknown"
-    is_healthy = True
+    is_healthy = True # Assume healthy until proven otherwise
     
     try:
-        # Perform the request and measure time
         response = requests.get(url, timeout=10)
-        
-        # Calculate duration from the response object
         request_duration_seconds = response.elapsed.total_seconds()
         request_duration_ms = round(request_duration_seconds * 1000, 2)
         http_code = response.status_code
         
-        # --- Health Check Criteria ---
-        
-        # 1. Check HTTP Status Code
+        # 1. Check if status is NOT 200
         if http_code != 200:
             is_healthy = False
             status = f"Unhealthy - Status code: {http_code}"
-            lambda_http_status = 502 # Bad Gateway for unexpected response
+            lambda_http_status = 502
         
-        # 2. Check Load Time (only if status code was 200)
+        # 2. Check if it's slow (even if status is 200)
         elif request_duration_seconds > MAX_LOAD_TIME_SECONDS:
             is_healthy = False
-            status = f"Unhealthy - Slow Load ({request_duration_ms:.2f}ms)"
-            # Keep lambda_http_status 200 since the request succeeded, but we still alert
-        
-        # If both checks pass
+            status = f"Unhealthy - Slow Load ({request_duration_ms}ms)"
+            # Note: We keep lambda_http_status 200 because the site is technically up
+            
         else:
             status = "Healthy"
-            is_healthy = True
             
-    except requests.exceptions.RequestException as e:
-        # Handle exceptions like DNS failure, connection timeout, etc.
+    except Exception as e:
         is_healthy = False
-        status = f"Unhealthy - Exception: {str(e.__class__.__name__)}"
-        lambda_http_status = 504 # Gateway Timeout for connection issues
+        status = f"Critical Error: {str(e)}"
+        http_code = 0
+        lambda_http_status = 504
 
-    # --- Notification and Logging ---
+    # Save all attempts to DynamoDB for history
+    save_result(url, status, http_code, request_duration_ms)
 
-    # Determine subject and message based on final health status
-    if is_healthy:
-        subject = f"SUCCESS: Website {url} is Healthy"
+    # EMAIL LOGIC: Trigger if is_healthy is False
+    if SNS_TOPIC_ARN and not is_healthy:
+        print(f"ALERT: Sending email because site is {status}")
+        subject = f"ALERT: Website {url} is {status}"
         message = (
-            f"Website {url} passed all checks.\n"
-            f"HTTP Status: {http_code}\n"
-            f"Load Time: {request_duration_ms:.2f} ms"
-        )
-    else:
-        subject = f"ALERT: Website {url} is UNHEALTHY"
-        message = (
-            f"Website {url} check failed!\n"
-            f"Status Reason: {status}\n"
-            f"HTTP Status: {http_code}\n"
-            f"Load Time: {request_duration_ms:.2f} ms (Threshold: {MAX_LOAD_TIME_MS} ms)"
+            f"Website health check failed!\n"
+            f"URL: {url}\n"
+            f"Result: {status}\n"
+            f"HTTP Code: {http_code}\n"
+            f"Load Time: {request_duration_ms}ms"
         )
         
-    print(f"Check result: Status='{status}', Code={http_code}, Duration={request_duration_ms:.2f}ms")
-    
-    # 1. Log result to DynamoDB
-    save_result(url, status, http_code, request_duration_ms)
-    
-    # 2. Send Notification via SNS
-    if SNS_TOPIC_ARN:
-        print(f"Publishing message to SNS Topic: {SNS_TOPIC_ARN}")
         sns_client.publish(
             TopicArn=SNS_TOPIC_ARN,
             Subject=subject,
             Message=message
         )
-    else:
-        print("INFO: SNS_TOPIC_ARN environment variable is not set. Skipping SNS notification.")
-    
-    # 3. Return the dynamic status code
+
+        
     return {
         'statusCode': lambda_http_status,
         'body': json.dumps({

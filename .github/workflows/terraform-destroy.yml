@@ -1,12 +1,7 @@
-name: 'Terraform Apply on Push to Main'
+name: 'Terraform Destroy'
+
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'images/**'
-      - '.gitignore'
+  workflow_dispatch:
 
 env:
   TF_CLOUD_ORGANIZATION: "YordanOrg"
@@ -15,34 +10,35 @@ env:
   CONFIG_DIRECTORY: "./"
 
 jobs:
-  terraform:
-    if: github.repository != 'ybasinnn/terraform-aws-website-uptime-monitor'
-    name: "Terraform Apply"
+  terraform-destroy:
+    name: "Terraform Destroy"
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Upload Configuration
         uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
-        id: apply-upload
+        id: destroy-upload
         with:
           workspace: ${{ env.TF_WORKSPACE }}
           directory: ${{ env.CONFIG_DIRECTORY }}
 
-      - name: Create Apply Run
+      - name: Create Destroy Run
         uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
-        id: apply-run
+        id: destroy-run
         with:
           workspace: ${{ env.TF_WORKSPACE }}
-          configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
+          configuration_version: ${{ steps.destroy-upload.outputs.configuration_version_id }}
+          is_destroy: true
 
-      - name: Apply
+      - name: Apply Destroy
         uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
-        if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
-        id: apply
+        if: fromJSON(steps.destroy-run.outputs.payload).data.attributes.actions.IsConfirmable
+        id: destroy-apply
         with:
-          run: ${{ steps.apply-run.outputs.run_id }}
-          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+          run: ${{ steps.destroy-run.outputs.run_id }}
+          comment: "Manual Destroy Run from GitHub Actions"

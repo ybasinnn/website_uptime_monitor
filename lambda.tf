@@ -14,10 +14,6 @@ resource "aws_iam_role" "health_check_lambda_role" {
   })
 }
 
-resource "aws_sns_topic" "website_alerts" {
-  name = "WebsiteHealthCheckTopic"
-}
-
 
 resource "aws_iam_policy" "lambda_logging_policy" {
   name = "LambdaLoggingPolicy"
@@ -43,7 +39,7 @@ resource "aws_iam_policy" "sns_publish_policy" {
     Statement = [{
       Action   = "sns:Publish",
       Effect   = "Allow",
-      Resource = aws_sns_topic.website_alerts.arn
+      Resource = aws_sns_topic.health_check_topic.arn
     }]
   })
 }
@@ -86,7 +82,7 @@ resource "aws_lambda_function" "health_check_lambda" {
   # Crucial: Pass the DynamoDB table name and URL to the function
   environment {
     variables = {
-      SNS_TOPIC_ARN   = aws_sns_topic.website_alerts.arn
+      SNS_TOPIC_ARN   = aws_sns_topic.health_check_topic.arn
       TARGET_URL      = var.target_url
       DYNAMODB_TABLE  = aws_dynamodb_table.health_check_results.name # <-- New Environment Variable
     }

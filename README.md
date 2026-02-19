@@ -19,6 +19,33 @@ Notifications regarding the website's status are sent via an Amazon SNS Topic. E
 ![Health check results](images/results.png)
 
 ## Deployment
-1. Initialize Terraform: `terraform init`
-2. Review the plan: `terraform plan`
-3. Deploy the infrastructure: `terraform apply`
+
+### 1. Configure Workspace Variables
+Terraform Cloud requires specific variables to manage your infrastructure. 
+
+1. Navigate to your workspace: **`website_check_serverless`**.
+2. Go to the **Variables** tab.
+3. Add the following under the **Terraform variables** section:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `aws_region` | The AWS region to deploy resources. | `eu-west-1` |
+| `target_url` | The URL you want to monitor. | `https://example.com` |
+| `email_endpoint` | Email address for alert notifications. | `devops@example.com` |
+
+![Workspace variables](images/variables.png)
+
+### 2. Initialize Terraform
+Open your terminal in the project root and run the initialization command. This will connect to Terraform Cloud and download the necessary AWS providers.
+
+```bash
+terraform init
+```
+
+### 3. Plan and apply 
+
+```bash
+terraform plan
+
+terraform apply -auto-approve
+```

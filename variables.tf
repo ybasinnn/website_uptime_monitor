@@ -1,7 +1,6 @@
 variable "aws_region" {
   description = "The AWS region to deploy resources in."
   type        = string
-  default     = "eu-west-1"
 
 }
 
@@ -11,5 +10,6 @@ variable "email_endpoint" {
 }
 
 variable "target_url" {
-  default = "https://noto360.com"
+  description = "The url that would be monitored"
+  type       = string
 }

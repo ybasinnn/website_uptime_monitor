@@ -13,7 +13,7 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   api_id             = aws_apigatewayv2_api.dashboard_api.id
   integration_type   = "AWS_PROXY"
   integration_method = "POST"
-  integration_uri    = aws_lambda_function.dashboard_lambda.invoke_arn
+  integration_uri    = var.lambda_dashboard_arn
   payload_format_version = "2.0"
 }
 
@@ -35,7 +35,7 @@ resource "aws_apigatewayv2_stage" "api_stage" {
 resource "aws_lambda_permission" "apigw_lambda_permission" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.dashboard_lambda.function_name
+  function_name = var.lambda_dashbaord_name
   principal     = "apigateway.amazonaws.com"
 
   source_arn = "${aws_apigatewayv2_api.dashboard_api.execution_arn}/*/*"

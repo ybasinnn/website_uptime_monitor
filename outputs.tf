@@ -1,16 +1,19 @@
 output "dashboard_s3_endpoint" {
-  description = "The publicly accessible URL of the Static Website Dashboard."
-  value       = aws_s3_bucket_website_configuration.website_config.website_endpoint
+  description = "Public S3 static website URL"
+  value       = module.s3_fe.dashboard_s3_endpoint
 }
-
-
-output "dashboard_api_url" {
-  description = "The API Gateway URL used by the dashboard to fetch data."
-  value       = local.api_url
-}
-
 
 output "dynamodb_table_name" {
-  description = "The name of the DynamoDB table storing health check results."
-  value       = aws_dynamodb_table.health_check_results.name
+  description = "DynamoDB table name"
+  value       = module.dynamodb.table_name
+}
+
+output "dynamodb_table_arn" {
+  description = "DynamoDB table ARN"
+  value       = module.dynamodb.table_arn
+}
+
+output "api_gateway_endpoint" {
+  description = "API Gateway invoke URL"
+  value       = module.api_gw.api_endpoint
 }

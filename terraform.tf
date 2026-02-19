@@ -1,9 +1,9 @@
 terraform {
   cloud {
-    organization = "YordanOrg" 
+    organization = "YordanOrg"
     workspaces {
-      name = "website_check_serverless"        
-    }                                          
+      name = "website_check_serverless"
+    }
   }
 
 

@@ -1,6 +1,6 @@
 output "dashboard_s3_endpoint" {
   description = "Public S3 static website URL"
-  value       = module.s3_fe.dashboard_s3_endpoint
+  value       = "http://${module.s3_fe.dashboard_s3_endpoint}"
 }
 
 output "dynamodb_table_name" {

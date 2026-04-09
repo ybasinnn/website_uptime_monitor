@@ -16,7 +16,7 @@ Notifications regarding the website's status are sent via an Amazon SNS Topic. E
 6. **S3 Bucket**: Hosts the final output for visualization.
 
 ## Results
-![Health check results](images/results.png)
+![Health check results](images/results.gif)
 
 ## Deployment
 

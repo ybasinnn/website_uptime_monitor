@@ -23,8 +23,6 @@ def get_ssl_details(url):
     parsed_url = urlparse(url)
     hostname = parsed_url.hostname
     
-    # Create a context that ignores cert validation errors JUST for the check
-    # if standard validation fails, but tries to get the cert regardless.
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE 
@@ -32,14 +30,9 @@ def get_ssl_details(url):
     try:
         with socket.create_connection((hostname, 443), timeout=5) as sock:
             with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-                # Get the certificate in dict format
                 cert = ssock.getpeercert(binary_form=True)
                 tls_version = ssock.version()
                 
-                # Convert binary cert to dict to get 'notAfter'
-                decoded_cert = ssl.DER_cert_to_PEM_cert(cert)
-                # We use a fallback logic here to get dates if getpeercert() is empty
-                # Using the ssock.getpeercert() without binary_form first:
                 context_v = ssl.create_default_context()
                 with socket.create_connection((hostname, 443), timeout=5) as sock2:
                     with context_v.wrap_socket(sock2, server_hostname=hostname) as ssock2:
@@ -50,7 +43,7 @@ def get_ssl_details(url):
                         return tls_version, days_left
     except Exception as e:
         print(f"SSL Detail Error: {e}")
-        return "TLSv1.2+", 0 # Fallback values
+        return "TLSv1.2+", 0 
 
 def save_result(url, status, http_code, duration_ms, tls_ver, ssl_days, redirected, chain):
     if not DYNAMODB_TABLE: return
@@ -70,9 +63,34 @@ def save_result(url, status, http_code, duration_ms, tls_ver, ssl_days, redirect
     except Exception as e:
         print(f"DynamoDB Error: {e}")
 
+def send_alert(url, status, code, reasons):
+    """Sends notification via SNS."""
+    if not SNS_TOPIC_ARN:
+        return
+    
+    subject = f"🚨 ALERT: {url} is Unhealthy"
+    message = (
+        f"Health Check Failed!\n\n"
+        f"URL: {url}\n"
+        f"Status: {status}\n"
+        f"HTTP Code: {code}\n"
+        f"Reasons: {', '.join(reasons)}\n"
+        f"Timestamp: {datetime.utcnow().isoformat()}"
+    )
+    
+    try:
+        sns_client.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Subject=subject,
+            Message=message
+        )
+    except Exception as e:
+        print(f"SNS Error: {e}")
+
 def lambda_handler(event, context):
     url = TARGET_URL
     is_healthy = True
+    reasons = []
     
     try:
         response = requests.get(url, timeout=10, allow_redirects=True)
@@ -83,24 +101,30 @@ def lambda_handler(event, context):
         
         tls_version, ssl_days = get_ssl_details(url)
         
-        reasons = []
+        # --- Health Checks ---
         if response.status_code != 200:
             is_healthy = False
-            reasons.append(f"Status {response.status_code}")
+            reasons.append(f"HTTP {response.status_code}")
         if (duration_ms / 1000) > MAX_LOAD_TIME_SECONDS:
             is_healthy = False
-            reasons.append("Slow")
-        if ssl_days < 14 and tls_version != "Unknown":
+            reasons.append(f"Slow response ({duration_ms}ms)")
+        if ssl_days < 14:
             is_healthy = False
-            reasons.append(f"SSL Expiring")
+            reasons.append(f"SSL expiring in {ssl_days} days")
 
-        status = "Healthy" if is_healthy else "Unhealthy: " + ", ".join(reasons)
+        status = "Healthy" if is_healthy else "Unhealthy"
             
     except Exception as e:
         is_healthy = False
-        status = f"Unhealthy: {type(e).__name__}"
+        reasons.append(type(e).__name__)
+        status = "Unhealthy"
         response, duration_ms, tls_version, ssl_days, redirected, chain = type('obj', (object,), {'status_code': 0}), 0, "N/A", 0, False, "Error"
 
+    # 1. Always Save to DynamoDB
     save_result(url, status, response.status_code, duration_ms, tls_version, ssl_days, redirected, chain)
+    
+    # 2. ONLY send SNS if not healthy
+    if not is_healthy:
+        send_alert(url, status, response.status_code, reasons)
     
     return {'statusCode': 200, 'body': json.dumps({'is_healthy': is_healthy})}

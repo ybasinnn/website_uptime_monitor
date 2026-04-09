@@ -1,3 +1,7 @@
+![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)
+
 # Serverless Website Health Checker (AWS + Terraform)
 
 This project deploys a serverless health-monitoring system on AWS using Terraform. It leverages an AWS Lambda function, triggered every 5 minutes by Amazon EventBridge (CloudWatch Events), to perform an HTTP health check on a specified URL. 

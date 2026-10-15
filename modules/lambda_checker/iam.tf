@@ -24,8 +24,11 @@ resource "aws_iam_policy" "lambda_logging_policy" {
         "logs:CreateLogStream",
         "logs:PutLogEvents",
       ],
-      Effect   = "Allow",
-      Resource = "arn:aws:logs:*:*:*"
+      Effect = "Allow",
+      Resource = [
+        "arn:aws:logs:*:*:log-group:/aws/lambda/${aws_lambda_function.health_check_lambda.function_name}",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/${aws_lambda_function.health_check_lambda.function_name}:*",
+      ]
     }]
   })
 }

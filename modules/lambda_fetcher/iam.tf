@@ -37,7 +37,10 @@ resource "aws_iam_policy" "dashboard_lambda_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = [
+          "arn:aws:logs:*:*:log-group:/aws/lambda/${aws_lambda_function.dashboard_lambda.function_name}",
+          "arn:aws:logs:*:*:log-group:/aws/lambda/${aws_lambda_function.dashboard_lambda.function_name}:*",
+        ]
       }
     ]
   })
@@ -46,31 +49,4 @@ resource "aws_iam_policy" "dashboard_lambda_policy" {
 resource "aws_iam_role_policy_attachment" "dashboard_lambda_policy_attach" {
   role       = aws_iam_role.dashboard_lambda_role.name
   policy_arn = aws_iam_policy.dashboard_lambda_policy.arn
-}
-
-
-resource "aws_iam_role_policy_attachment" "dynamodb_read_attach" {
-  role       = aws_iam_role.dashboard_lambda_role.name
-  policy_arn = aws_iam_policy.dynamodb_read_policy.arn
-}
-
-
-resource "aws_iam_policy" "dynamodb_read_policy" {
-  name        = "LambdaDynamoDBReadPolicy"
-  description = "Allows the db_fetcher Lambda to read items from the DynamoDB results table."
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:Query",
-          "dynamodb:Scan",
-        ]
-        Resource = var.dynamodb_table_name_arn
-      },
-    ]
-  })
 }

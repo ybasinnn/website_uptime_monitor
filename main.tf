@@ -45,6 +45,7 @@ module "api_gw" {
   source                = "./modules/api_gw"
   lambda_dashbaord_name = module.lambda_fetcher.dashboard_lambda_name
   lambda_dashboard_arn  = module.lambda_fetcher.dashboard_lambda_arn
+  allowed_origin        = "http://${module.s3_fe.dashboard_s3_endpoint}"
 
 }
 

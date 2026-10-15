@@ -24,7 +24,10 @@ def lambda_handler(event, context):
         return {
             'statusCode': 200,
             'body': json.dumps(sorted(items, key=lambda x: x['Timestamp'], reverse=True)),
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}
+            # CORS headers are set by API Gateway (restricted to the dashboard origin)
+            'headers': {'Content-Type': 'application/json'}
         }
     except Exception as e:
-        return {'statusCode': 500, 'body': str(e), 'headers': {'Access-Control-Allow-Origin': '*'}}
+        # Log details for CloudWatch only; the API is public, so return a generic message
+        print(f"DynamoDB read error: {e}")
+        return {'statusCode': 500, 'body': json.dumps({'error': 'Internal error'}), 'headers': {'Content-Type': 'application/json'}}

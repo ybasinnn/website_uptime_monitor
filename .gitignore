@@ -2,6 +2,6 @@
 .terraform.*
 details.txt
 lambda/package/*
-modules/lambda_checker/lambda/build/
 modules/lambda_checker/lambda/website_check.zip
 modules/lambda_fetcher/lambda/db_fetch_results.zip
+__pycache__/

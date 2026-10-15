@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - 'README.md'
       - 'images/**'
+      - 'docs/**'
       - '.gitignore'
   # Manual trigger so the infrastructure can be recreated after a destroy
   workflow_dispatch:

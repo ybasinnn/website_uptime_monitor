@@ -3,6 +3,8 @@ data "archive_file" "website_checker_lambda_deployment_package" {
   type        = "zip"
   source_file = "${path.module}/lambda/lambda_function.py"
   output_path = "${path.module}/lambda/website_check.zip"
+  # Fixed mode so the zip hash is identical locally and in CI (umask differs)
+  output_file_mode = "0644"
 }
 
 

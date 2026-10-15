@@ -3,6 +3,8 @@ data "archive_file" "db_fetcher_lambda_deployment_package" {
   type        = "zip"
   source_file = "${path.module}/lambda/db_fetch.py"
   output_path = "${path.module}/lambda/db_fetch_results.zip"
+  # Fixed mode so the zip hash is identical locally and in CI (umask differs)
+  output_file_mode = "0644"
 }
 
 resource "aws_lambda_function" "dashboard_lambda" {

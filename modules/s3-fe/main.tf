@@ -39,6 +39,9 @@ resource "aws_s3_bucket_policy" "dashboard_bucket_policy" {
       },
     ],
   })
+
+  # A public policy is rejected until Block Public Access has been relaxed
+  depends_on = [aws_s3_bucket_public_access_block.block_public_access]
 }
 
 # --- 6. Website Configuration ---

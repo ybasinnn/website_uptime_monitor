@@ -11,6 +11,8 @@ Notifications regarding the website's status are sent via an Amazon SNS Topic. E
 ## Architecture
 ![Architecture](images/website_monitor_architecture.png)
 
+The diagram is generated from code: `pip install diagrams && python docs/architecture/architecture.py` (requires Graphviz).
+
 ## Workflow
 1. **EventBridge**: Triggers the "Checker" Lambda function on a 5-minute schedule.
 2. **Lambda (Checker)**: Executes an HTTP request and evaluates the response.

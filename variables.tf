@@ -11,5 +11,5 @@ variable "email_endpoint" {
 
 variable "target_url" {
   description = "The url that would be monitored"
-  type       = string
+  type        = string
 }

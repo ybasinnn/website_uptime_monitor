@@ -37,6 +37,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # HCP Terraform locks the workspace while any run (e.g. a local CLI plan or
+      # the apply-on-push run) is active, and tfci refuses to queue a destroy on a
+      # locked workspace. Wait for the lock to clear instead of failing outright.
+      - name: Wait for workspace to unlock
+        env:
+          LOCK_TIMEOUT_SECONDS: 600
+        run: |
+          url="https://app.terraform.io/api/v2/organizations/$TF_CLOUD_ORGANIZATION/workspaces/$TF_WORKSPACE"
+          deadline=$(( $(date +%s) + LOCK_TIMEOUT_SECONDS ))
+          while :; do
+            ws=$(curl -sf -H "Authorization: Bearer $TF_API_TOKEN" -H "Content-Type: application/vnd.api+json" "$url")
+            if [ "$(jq -r '.data.attributes.locked' <<<"$ws")" != "true" ]; then
+              echo "Workspace is unlocked (resources under management: $(jq -r '.data.attributes["resource-count"]' <<<"$ws"))."
+              break
+            fi
+            holder=$(jq -r '.data.relationships["locked-by"].data | "\(.type)/\(.id)"' <<<"$ws")
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Workspace still locked by $holder after ${LOCK_TIMEOUT_SECONDS}s. Finish or discard that run in HCP Terraform and retry."
+              exit 1
+            fi
+            echo "Workspace locked by $holder, waiting 15s..."
+            sleep 15
+          done
+
       - name: Upload Configuration
         uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.3.2
         id: destroy-upload

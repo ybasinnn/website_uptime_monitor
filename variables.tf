@@ -7,6 +7,7 @@ variable "aws_region" {
 variable "email_endpoint" {
   description = "The email address to subscribe to the SNS topic for notifications."
   type        = string
+  sensitive   = true
 }
 
 variable "target_url" {

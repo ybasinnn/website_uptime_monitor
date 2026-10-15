@@ -3,8 +3,9 @@ resource "aws_apigatewayv2_api" "dashboard_api" {
   protocol_type = "HTTP"
   cors_configuration {
     allow_methods = ["GET"]
-    allow_origins = ["*"] 
-    allow_headers = ["content-type", "x-amz-date", "authorization", "x-api-key", "x-amz-security-token", "x-amz-user-agent"]
+    # Only the dashboard may call the API from a browser
+    allow_origins = [var.allowed_origin]
+    allow_headers = ["content-type"]
   }
 }
 
@@ -29,6 +30,12 @@ resource "aws_apigatewayv2_stage" "api_stage" {
   api_id = aws_apigatewayv2_api.dashboard_api.id
   name   = "$default" 
   auto_deploy = true
+
+  # The endpoint is public and unauthenticated; cap request rate to limit cost abuse
+  default_route_settings {
+    throttling_burst_limit = var.throttling_burst_limit
+    throttling_rate_limit  = var.throttling_rate_limit
+  }
 }
 
 

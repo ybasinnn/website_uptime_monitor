@@ -50,6 +50,11 @@
         let refreshTimer = 0;
         const REFRESH_INTERVAL = 30; // seconds
 
+        // API values are inserted with innerHTML, so escape them first
+        function esc(value) {
+            return String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+        }
+
         function updateRefreshUI() {
             refreshTimer++;
             const percentage = (refreshTimer / REFRESH_INTERVAL) * 100;
@@ -106,22 +111,22 @@
                     <div class="p-4 rounded-lg shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4 items-center $${cardClass}">
                         <div>
                             <p class="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">$${new Date(res.Timestamp).toLocaleTimeString()}</p>
-                            <p class="text-sm font-mono truncate text-gray-700 font-semibold">$${res.URL}</p>
+                            <p class="text-sm font-mono truncate text-gray-700 font-semibold">$${esc(res.URL)}</p>
                         </div>
                         
                         <div class="text-xs text-gray-500">
-                            <p class="mb-1"><span class="text-gray-400 font-medium">PROTO:</span> $${res.TLS}</p>
-                            <p><span class="text-gray-400 font-medium">SSL:</span> <span class="$${res.SSLDays < 14 ? 'text-red-500 font-bold' : 'text-gray-700'}">$${res.SSLDays} days left</span></p>
+                            <p class="mb-1"><span class="text-gray-400 font-medium">PROTO:</span> $${esc(res.TLS)}</p>
+                            <p><span class="text-gray-400 font-medium">SSL:</span> <span class="$${res.SSLDays < 14 ? 'text-red-500 font-bold' : 'text-gray-700'}">$${esc(res.SSLDays)} days left</span></p>
                         </div>
 
                         <div class="text-xs text-gray-500">
-                            <p class="mb-1"><span class="text-gray-400 font-medium">HOP:</span> $${res.Redirect}</p>
+                            <p class="mb-1"><span class="text-gray-400 font-medium">HOP:</span> $${esc(res.Redirect)}</p>
                             <p><span class="text-gray-400 font-medium">LATENCY:</span> <span class="text-gray-700 font-bold">$${!isNaN(latency) ? latency.toFixed(0) + 'ms' : 'N/A'}</span></p>
                         </div>
 
                         <div class="text-right">
                             <span class="px-2 py-1 text-[10px] font-black rounded border $${isHealthy ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}">
-                                HTTP $${res.HTTPStatusCode} • $${isHealthy ? 'UP' : 'DOWN'}
+                                HTTP $${esc(res.HTTPStatusCode)} • $${isHealthy ? 'UP' : 'DOWN'}
                             </span>
                         </div>
                     </div>

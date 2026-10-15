@@ -25,25 +25,36 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Terraform run logs are public on this repo; hide the AWS account ID in ARNs
+      - name: Mask AWS account ID
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          if [ -n "$AWS_ACCOUNT_ID" ]; then
+            echo "::add-mask::$AWS_ACCOUNT_ID"
+          else
+            echo "::warning::AWS_ACCOUNT_ID secret is not set; the account ID will appear in these public logs."
+          fi
+
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Upload Configuration
-        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@4c569ffb1a0f1bf0daf00539abb505bcd246748a # v1.0.0
         id: apply-upload
         with:
           workspace: ${{ env.TF_WORKSPACE }}
           directory: ${{ env.CONFIG_DIRECTORY }}
 
       - name: Create Apply Run
-        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
+        uses: hashicorp/tfc-workflows-github/actions/create-run@4c569ffb1a0f1bf0daf00539abb505bcd246748a # v1.0.0
         id: apply-run
         with:
           workspace: ${{ env.TF_WORKSPACE }}
           configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
 
       - name: Apply
-        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@4c569ffb1a0f1bf0daf00539abb505bcd246748a # v1.0.0
         if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
         id: apply
         with:
